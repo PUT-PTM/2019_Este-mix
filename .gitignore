@@ -1,0 +1,8 @@
+EsteMix/Drivers/
+EsteMix/Inc/
+EsteMix/startup/
+EsteMix/.cproject
+EsteMix/.mxproject
+EsteMix/.project
+EsteMix/EsteMix.xml
+EsteMix/STM32F407VGTx_FLASH.ld
