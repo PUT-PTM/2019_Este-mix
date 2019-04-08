@@ -48,8 +48,8 @@ TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-int counter=0;
-float centymetry;
+int cnt=0;
+double cm1=0,cm2=0,cm3=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,17 +62,73 @@ static void MX_TIM3_Init(void);
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance == TIM3) {
-		counter+=1;
+		cnt++;
 	}
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	if(GPIO_Pin == GPIO_PIN_1){
-		centymetry=counter/58;
-		HAL_TIM_Base_Stop_IT(&htim3);
-		TIM3->CNT=0;
-		counter=0;
+		if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1)){
+			HAL_TIM_Base_Start_IT(&htim3);}
+	else{
+			cm1=cnt/58.0;
+			HAL_TIM_Base_Stop_IT(&htim3);
+			TIM3->CNT=0;
+			cnt=0;
+			}
 	  }
+
+	if(GPIO_Pin == GPIO_PIN_2){
+			if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2)){
+				HAL_TIM_Base_Start_IT(&htim3);}
+		else{
+				cm2=cnt/58.0;
+				HAL_TIM_Base_Stop_IT(&htim3);
+				TIM3->CNT=0;
+				cnt=0;
+				}
+		  }
+
+	if(GPIO_Pin == GPIO_PIN_3){
+			if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3)){
+				HAL_TIM_Base_Start_IT(&htim3);}
+		else{
+				cm3=cnt/58.0;
+				HAL_TIM_Base_Stop_IT(&htim3);
+				TIM3->CNT=0;
+				cnt=0;
+				}
+		  }
+}
+
+void triggerHC1(){
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0,0);
+		HAL_Delay(2);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0,1);
+		HAL_Delay(10);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0,0);
+}
+
+void triggerHC2(){
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4,0);
+		HAL_Delay(2);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4,1);
+		HAL_Delay(10);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4,0);
+}
+
+void triggerHC3(){
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5,0);
+		HAL_Delay(2);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5,1);
+		HAL_Delay(10);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5,0);
 }
 /* USER CODE END PFP */
 
@@ -118,16 +174,12 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0,0);
-	  HAL_Delay(2);
-
-	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0,1);
-	  HAL_TIM_Base_Start_IT(&htim3);
-	  HAL_Delay(10);
-
-	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0,0);
+	  triggerHC1();
 	  HAL_Delay(200);
-
+	  triggerHC2();
+	  HAL_Delay(200);
+	  triggerHC3();
+	  HAL_Delay(200);
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -159,8 +211,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 25;
-  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -239,28 +291,34 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_0, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  /*Configure GPIO pins : PE2 PE3 PE1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PE4 PE5 PE0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PC1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 }
 
