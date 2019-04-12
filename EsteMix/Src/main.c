@@ -78,8 +78,17 @@ TIM_HandleTypeDef htim3;
 int cnt=0;
 double cm1=0,cm2=0,cm3=0;
 #define PI 3.14159f
-#define F_SAMPLE 50000.0f
+#define F_SAMPLE 60000.0f
 #define F_OUT 1000.0f
+float mySinval;
+float sample_dt=F_OUT/F_SAMPLE;
+uint16_t sample_N=F_SAMPLE/F_OUT;
+uint16_t i_t;
+uint32_t myDacval;
+int16_t I2S_dummy[4];
+float vol = 1.0f;
+float freq = 1.0f;
+float amp = 1.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,6 +107,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance == TIM3) {
 		cnt++;
 	}
+	if(htim->Instance == TIM2){
+		  mySinval = sinf(i_t * 2 * PI * sample_dt);
+		  //konwersja z float na dac1
+		  myDacval = (mySinval + 1) * 127 ;
+		  //wyprowadzenie probki na DAC
+		  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, myDacval * vol);
+
+		  i_t++;
+		  if(i_t>=amp)
+
+			  {i_t=0;}
+	  }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
@@ -168,12 +189,7 @@ void triggerHC3(){
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float mySinval;
-float sample_dt;
-uint16_t sample_N;
-uint16_t i_t;
-uint32_t myDacval;
-int16_t I2S_dummy[4];
+
 /* USER CODE END 0 */
 
 /**
@@ -183,8 +199,7 @@ int16_t I2S_dummy[4];
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	sample_dt = F_OUT/F_SAMPLE;
-	sample_N = F_SAMPLE/F_OUT;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -233,12 +248,15 @@ int main(void)
   while (1)
   {
 	  triggerHC1();
-	  HAL_Delay(200);
+	//  HAL_Delay(200);
 	  triggerHC2();
-	  HAL_Delay(200);
-	  triggerHC3();
-	  HAL_Delay(200);
-    /* USER CODE END WHILE */
+	  //HAL_Delay(200);
+//	  triggerHC3();
+//	  HAL_Delay(200);
+
+	  vol = cm1/30;
+	  amp = cm2*10;
+	  /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
@@ -564,26 +582,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(htim);
-  /* NOTE : This function Should not be modified, when the callback is needed,
-            the __HAL_TIM_PeriodElapsedCallback could be implemented in the user file
-   */
-  if(htim->Instance == TIM2){
-	  mySinval = sinf(i_t * 2 * PI * sample_dt);
-	  //konwersja z float na dac1
-	  myDacval = (mySinval + 1) * 127;
-	  //wyprowadzenie probki na DAC
-	  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, myDacval);
 
-	  i_t++;
-	  if(i_t>=sample_N)
-
-		  {i_t=0;}
-  }
-}
 /* USER CODE END 4 */
 
 /**
