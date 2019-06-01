@@ -106,7 +106,6 @@ void HAL_MspInit(void)
 */
 void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
 {
-
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   if(hdac->Instance==DAC)
   {
@@ -138,10 +137,8 @@ void HAL_DAC_MspInit(DAC_HandleTypeDef* hdac)
 * @param hdac: DAC handle pointer
 * @retval None
 */
-
 void HAL_DAC_MspDeInit(DAC_HandleTypeDef* hdac)
 {
-
   if(hdac->Instance==DAC)
   {
   /* USER CODE BEGIN DAC_MspDeInit 0 */
@@ -170,7 +167,6 @@ void HAL_DAC_MspDeInit(DAC_HandleTypeDef* hdac)
 */
 void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
 {
-
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   if(hi2c->Instance==I2C1)
   {
@@ -205,10 +201,8 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
 * @param hi2c: I2C handle pointer
 * @retval None
 */
-
 void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 {
-
   if(hi2c->Instance==I2C1)
   {
   /* USER CODE BEGIN I2C1_MspDeInit 0 */
@@ -238,7 +232,6 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 */
 void HAL_I2S_MspInit(I2S_HandleTypeDef* hi2s)
 {
-
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   if(hi2s->Instance==SPI3)
   {
@@ -305,10 +298,8 @@ void HAL_I2S_MspInit(I2S_HandleTypeDef* hi2s)
 * @param hi2s: I2S handle pointer
 * @retval None
 */
-
 void HAL_I2S_MspDeInit(I2S_HandleTypeDef* hi2s)
 {
-
   if(hi2s->Instance==SPI3)
   {
   /* USER CODE BEGIN SPI3_MspDeInit 0 */
@@ -344,7 +335,6 @@ void HAL_I2S_MspDeInit(I2S_HandleTypeDef* hi2s)
 */
 void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 {
-
   if(htim_base->Instance==TIM2)
   {
   /* USER CODE BEGIN TIM2_MspInit 0 */
@@ -382,10 +372,8 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 * @param htim_base: TIM_Base handle pointer
 * @retval None
 */
-
 void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
 {
-
   if(htim_base->Instance==TIM2)
   {
   /* USER CODE BEGIN TIM2_MspDeInit 0 */
