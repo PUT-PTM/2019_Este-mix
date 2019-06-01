@@ -72,12 +72,19 @@ DMA_HandleTypeDef hdma_spi3_tx;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 int cnt=0;
 double cm1=0,cm2=0,cm3=0;
 #define PI 3.14159f
+float freq = 1.0f;
+float amp = 1.0f;
+float freq2 = 1.0f;
+float amp2 = 1.0f;
+
+///SIN 1
 #define F_SAMPLE 60000.0f
 #define F_OUT 1000.0f
 float mySinval;
@@ -86,9 +93,17 @@ uint16_t sample_N=F_SAMPLE/F_OUT;
 uint16_t i_t;
 uint32_t myDacval;
 int16_t I2S_dummy[4];
-float vol = 1.0f;
-float freq = 1.0f;
-float amp = 1.0f;
+
+///SIN 2
+#define F_SAMPLE2 60000.0f
+#define F_OUT2 1000.0f
+float mySinval2;
+float sample_dt2=F_OUT2/F_SAMPLE2;
+uint16_t sample_N2=F_SAMPLE2/F_OUT2;
+uint16_t i_t2;
+uint32_t myDacval2;
+int16_t I2S_dummy2[4];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,6 +115,7 @@ static void MX_I2C1_Init(void);
 static void MX_I2S3_Init(void);
 static void MX_DAC_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
@@ -109,16 +125,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	}
 	if(htim->Instance == TIM2){
 		  mySinval = sinf(i_t * 2 * PI * sample_dt);
+		  overdrive(mySinval);
 		  //konwersja z float na dac1
 		  myDacval = (mySinval + 1) * 127 ;
 		  //wyprowadzenie probki na DAC
-		  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, myDacval * vol);
+		  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, myDacval);
 
 		  i_t++;
-		  if(i_t>=amp)
-
-			  {i_t=0;}
+		  if(i_t>=amp){
+			  i_t=0;
+		  }
 	  }
+	if(htim->Instance == TIM4){
+			  mySinval2 = sinf(i_t2 * 2 * PI * sample_dt2);
+			  overdrive(mySinval2);
+			  //konwersja z float na dac1
+			  myDacval2 = (mySinval2 + 1) * 127 ;
+			  //wyprowadzenie probki na DAC
+			  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_8B_R, myDacval2);
+
+			  i_t2++;
+			  if(i_t2>=amp2){
+				  i_t2=0;
+			  }
+		  }
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
@@ -126,7 +156,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1)){
 			HAL_TIM_Base_Start_IT(&htim3);}
 	else{
-			cm1=cnt/58.0;
+
+			if(cnt>1650){  ///cnt max 4080
+				cm1=1000;
+			}
+			else{
+				cm1=cnt * 0.207 * 3;
+			}
+
+
 			HAL_TIM_Base_Stop_IT(&htim3);
 			TIM3->CNT=0;
 			cnt=0;
@@ -137,23 +175,28 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2)){
 				HAL_TIM_Base_Start_IT(&htim3);}
 		else{
-				cm2=cnt/58.0;
-				HAL_TIM_Base_Stop_IT(&htim3);
-				TIM3->CNT=0;
-				cnt=0;
-				}
-		  }
+			if(cnt>1650){
+				cm2=1000;
+			}
+			else{
+				cm2=cnt * 0.207 * 3;
+			}
+
+		}
+	}
 
 	if(GPIO_Pin == GPIO_PIN_3){
 			if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3)){
 				HAL_TIM_Base_Start_IT(&htim3);}
 		else{
-				cm3=cnt/58.0;
-				HAL_TIM_Base_Stop_IT(&htim3);
-				TIM3->CNT=0;
-				cnt=0;
-				}
-		  }
+			if(cnt>340){
+				cm3=1000;
+			}
+			else{
+				cm3=cnt * 0.207 * 3;
+			}
+		}
+	}
 }
 
 void triggerHC1(){
@@ -184,6 +227,18 @@ void triggerHC3(){
 		HAL_Delay(10);
 
 		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5,0);
+}
+
+void overdrive(float *value){
+	double procent = cm3/1000.0; /// procent o jaki obcinamy z góry i z do³u
+	int max=1,min=-1; ///max i min sinusoidy
+
+	if(procent*max<*value){
+		*value=procent*max;
+	}
+	else if(procent*min>*value){
+		*value=procent*min;
+	}
 }
 /* USER CODE END PFP */
 
@@ -227,6 +282,7 @@ int main(void)
   MX_I2S3_Init();
   MX_DAC_Init();
   MX_TIM2_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   //wlaczanie CS43L22
     CS43_Init(hi2c1, MODE_ANALOG);
@@ -238,9 +294,13 @@ int main(void)
 
     //wlaczanie DAC
     HAL_DAC_Start(&hdac,DAC_CHANNEL_1);
+    //wlaczanie DAC2
+    HAL_DAC_Start(&hdac,DAC_CHANNEL_2);
 
     //wlaczenie TIM2
     HAL_TIM_Base_Start_IT(&htim2);
+    //wlaczenie TIM4
+    HAL_TIM_Base_Start_IT(&htim4);
 
   /* USER CODE END 2 */
 
@@ -249,14 +309,16 @@ int main(void)
   while (1)
   {
 	  triggerHC1();
-	//  HAL_Delay(200);
-	  triggerHC2();
-	  //HAL_Delay(200);
-//	  triggerHC3();
-//	  HAL_Delay(200);
+	  HAL_Delay(200);
 
-	  vol = cm1/30;
-	  amp = cm2*10;
+	  triggerHC2();
+	  HAL_Delay(200);
+
+	  triggerHC3();
+      HAL_Delay(200);
+
+	  amp = cm1*10;
+	  amp2 = cm2*10;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -344,6 +406,12 @@ static void MX_DAC_Init(void)
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
   sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
   if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** DAC channel OUT2 config 
+  */
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -511,6 +579,51 @@ static void MX_TIM3_Init(void)
 
 }
 
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 0;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
 /** 
   * Enable DMA controller clock
   */
@@ -539,43 +652,53 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15 
-                          |GPIO_PIN_4, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PE2 PE3 PE1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_1;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PE2 PE3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PE4 PE5 PE0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_0;
+  /*Configure GPIO pins : PE4 PE5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PD12 PD13 PD14 PD15 
-                           PD4 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15 
-                          |GPIO_PIN_4;
+  /*Configure GPIO pin : PD4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+  /*Configure GPIO pin : PB4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
