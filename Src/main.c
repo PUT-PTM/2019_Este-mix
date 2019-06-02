@@ -102,6 +102,7 @@ static void MX_DAC_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+float overdrive (float value);
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance == TIM3) {
@@ -109,10 +110,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	}
 	if(htim->Instance == TIM2){
 		  mySinval = sinf(i_t * 2 * PI * sample_dt);
+		  mySinval=overdrive(mySinval);
 		  //konwersja z float na dac1
-		  myDacval = (mySinval + 1) * 127 ;
+		  myDacval = (mySinval + 1) * 127  ;
 		  //wyprowadzenie probki na DAC
-		  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, myDacval * vol);
+		  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_8B_R, myDacval);
 
 		  i_t++;
 		  if(i_t>=amp)
@@ -126,7 +128,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_1)){
 			HAL_TIM_Base_Start_IT(&htim3);}
 	else{
-			cm1=cnt/58.0;
+		if(cnt>1650){  ///cnt max 4080
+			cm1=1000;
+		}
+		else{
+			cm1=cnt * 0.207 * 3;
+		}
 			HAL_TIM_Base_Stop_IT(&htim3);
 			TIM3->CNT=0;
 			cnt=0;
@@ -137,7 +144,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_2)){
 				HAL_TIM_Base_Start_IT(&htim3);}
 		else{
-				cm2=cnt/58.0;
+			if(cnt>1650){  ///cnt max 4080
+				cm2=1000;
+			}
+			else{
+				cm2=cnt * 0.207 * 3;
+			}
 				HAL_TIM_Base_Stop_IT(&htim3);
 				TIM3->CNT=0;
 				cnt=0;
@@ -148,7 +160,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 			if(HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_3)){
 				HAL_TIM_Base_Start_IT(&htim3);}
 		else{
-				cm3=cnt/58.0;
+			if(cnt>1650){  ///cnt max 4080
+				cm3=1000;
+			}
+			else{
+				cm3=cnt * 0.207 * 3;
+			}
 				HAL_TIM_Base_Stop_IT(&htim3);
 				TIM3->CNT=0;
 				cnt=0;
@@ -184,6 +201,20 @@ void triggerHC3(){
 		HAL_Delay(10);
 
 		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_5,0);
+}
+
+float overdrive(float value){
+	float procent = cm3/1000.0; /// procent o jaki obcinamy z g�ry i z do�u
+	float min=-1.0f; ///max i min sinusoidy
+
+	if(procent<value){
+		value=procent;
+	}
+	else if(procent*min>value){
+		value=procent*min;
+	}
+
+	return value;
 }
 /* USER CODE END PFP */
 
@@ -249,14 +280,13 @@ int main(void)
   while (1)
   {
 	  triggerHC1();
-	//  HAL_Delay(200);
+	  HAL_Delay(200);
 	  triggerHC2();
-	  //HAL_Delay(200);
-//	  triggerHC3();
-//	  HAL_Delay(200);
+	  HAL_Delay(200);
+	  triggerHC3();
+	  HAL_Delay(200);
 
-	  vol = cm1/30;
-	  amp = cm2*10;
+	  amp = cm2/10;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
